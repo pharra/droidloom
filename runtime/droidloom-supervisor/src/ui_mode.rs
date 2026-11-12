@@ -9,18 +9,35 @@ pub(super) fn set_night(pid: u32, night: bool) -> Result<(), ControlError> {
     let value = if night { "yes" } else { "no" };
     let mut command = droidloom_cpu_placement::command("/usr/bin/timeout");
     command
-        .args(["--kill-after=1s", "10s", "/usr/bin/nsenter", "--target"])
+        .args(["--kill-after=1s", "10s"])
+        .arg(droidloom_cpu_placement::executable_path("/usr/bin/nsenter"))
+        .arg("--target")
         .arg(pid.to_string())
         .args([
-            "--mount", "--uts", "--ipc", "--net", "--pid", "--cgroup", "--root", "--wd", "--env",
-            "--", "/system/bin/cmd", "uimode", "night", value,
+            "--mount",
+            "--uts",
+            "--ipc",
+            "--net",
+            "--pid",
+            "--cgroup",
+            "--root",
+            "--wd",
+            "--env",
+            "--",
+            "/system/bin/cmd",
+            "uimode",
+            "night",
+            value,
         ]);
     let output = diagnostics::capture_with_stdin(&mut command, Stdio::null())?;
     check_result(&output, value)
 }
 
 fn check_result(output: &str, value: &str) -> Result<(), ControlError> {
-    if output.lines().any(|line| line.trim() == format!("Night mode: {value}")) {
+    if output
+        .lines()
+        .any(|line| line.trim() == format!("Night mode: {value}"))
+    {
         Ok(())
     } else {
         Err(ControlError::Invalid(format!(

@@ -13,5 +13,7 @@ __pycache__/
 .pytest_cache/
 *.apk
 *.pkg.tar.*
+/result
+/result-*
 **/*.swp
 **/*~

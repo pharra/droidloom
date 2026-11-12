@@ -118,7 +118,7 @@ impl AdbClient {
         let name = name.to_bytes().to_vec();
         let home = unsafe { CStr::from_ptr(entry.pw_dir) }.to_bytes().to_vec();
         Ok(Self {
-            executable: ADB.into(),
+            executable: droidloom_cpu_placement::executable_path(ADB),
             uid,
             gid: entry.pw_gid,
             groups,
@@ -198,7 +198,9 @@ impl AdbClient {
         }
         // Spawn via the user's manager: a daemon forked directly by droidloomd
         // stays in its cgroup and systemd kills it when Droidloom stops.
-        let mut command = self.owner_command(Path::new("/usr/bin/systemd-run"));
+        let mut command = self.owner_command(&droidloom_cpu_placement::executable_path(
+            "/usr/bin/systemd-run",
+        ));
         command
             .env("XDG_RUNTIME_DIR", format!("/run/user/{}", self.uid))
             .env(
@@ -227,16 +229,16 @@ impl AdbClient {
         // Expand explicit environment assignments exactly once. This preserves
         // literal '$' characters in account paths and works with systemd
         // versions predating --expand-environment=no (v254).
-        command.args([
-            "/usr/bin/env",
-            "-i",
-            "PATH=/usr/bin:/bin",
-            "HOME=${HOME}",
-            "USER=${USER}",
-            "LOGNAME=${LOGNAME}",
-            ADB,
-            "start-server",
-        ]);
+        command
+            .arg(droidloom_cpu_placement::executable_path("/usr/bin/env"))
+            .arg("-i")
+            .arg(format!(
+                "PATH={}",
+                std::env::var("DROIDLOOM_BIN_PATH").unwrap_or_else(|_| "/usr/bin:/bin".into())
+            ))
+            .args(["HOME=${HOME}", "USER=${USER}", "LOGNAME=${LOGNAME}"])
+            .arg(&self.executable)
+            .arg("start-server");
         run_command(command, COMMAND_TIMEOUT).map(|_| ())
     }
 

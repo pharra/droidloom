@@ -42,7 +42,9 @@ pub(super) fn install(pid: u32, user: u32, mut file: File) -> Result<(), Control
 fn install_command(pid: u32, user: u32, bytes: u64) -> Command {
     let mut command = droidloom_cpu_placement::command("/usr/bin/timeout");
     command
-        .args(["--kill-after=5s", "110s", "/usr/bin/nsenter", "--target"])
+        .args(["--kill-after=5s", "110s"])
+        .arg(droidloom_cpu_placement::executable_path("/usr/bin/nsenter"))
+        .arg("--target")
         .arg(pid.to_string())
         .args([
             "--mount",

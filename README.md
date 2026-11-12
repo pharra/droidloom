@@ -160,6 +160,52 @@ cargo run --locked -j 1 -p droidloom-package -- build
 Add `--architecture aarch64 --sysroot PATH` to cross-build the aarch64 packages
 on the same x86_64 machine.
 
+## NixOS (experimental)
+
+The root flake exposes an x86_64 NixOS module and a host package. It builds the
+Linux host programs from this checkout and fetches the matching release 33
+Android image and runtime metadata; the Android image itself is not patched.
+Host paths retain their existing `/usr/...` defaults in source builds; the
+NixOS package wrappers provide `DROIDLOOM_BIN_PATH` and
+`DROIDLOOM_PACKAGE_VERSION` overrides at runtime, and the module supplies the
+Nix-store path for generated application launchers. No build-time source
+rewriting is used. This integration is experimental and needs validation on
+the target kernel and Wayland compositor.
+
+Add the flake to an existing NixOS configuration:
+
+```nix
+inputs.droidloom.url = "github:pharra/droidloom";
+inputs.droidloom.inputs.nixpkgs.follows = "nixpkgs";
+```
+
+Add `inputs.droidloom.nixosModules.default` to the host's `modules` list, then
+configure the existing desktop user:
+
+```nix
+{
+  services.droidloom = {
+    enable = true;
+    user = "your-login";
+    uid = 1000; # Must equal `id -u your-login`.
+    manageSubIds = true;
+    subIdStart = 100000; # Check that this 100000-ID range is unused.
+    renderNode = "/dev/dri/renderD128";
+    # Set to "forwarding" for NVIDIA without an Android Vulkan driver.
+    graphicsBackend = "drm";
+    autoStart = false;
+    applications = [ ./my-app.apk ];
+  };
+}
+```
+
+Check the flake before building or activating the system:
+`nix flake check --no-build`, then `nix build .#host`. The module stores Android
+data under `/var/lib/droidloom/nixos/`, separately from storage used by other
+installations; existing data is not migrated or removed. Start it in the
+Wayland session with `droidloomctl start`. Module options and service wiring
+are in [nix/module.nix](nix/module.nix).
+
 ## Development
 
 - [Documentation](docs/README.md): architecture, desktop integration and contracts.

@@ -1,6 +1,10 @@
 //! Linux affinity and topology backend, independent of worker classification.
 use crate::{Role, current};
-use std::{fs, io, mem, sync::OnceLock};
+use std::{
+    env, fs, io, mem,
+    path::{Path, PathBuf},
+    sync::OnceLock,
+};
 /// A bounded Linux CPU set, serialized using the kernel's CPU-list notation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CpuSet(Vec<usize>);
@@ -212,7 +216,31 @@ pub(super) fn apply_current(role: Role) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsStr;
     use std::thread;
+
+    #[test]
+    fn executable_path_preserves_default_and_resolves_optional_host_bin_path() {
+        let original = PathBuf::from("/usr/bin/droidloomctl");
+        assert_eq!(executable_path_with(original.as_os_str(), None), original);
+        assert_eq!(
+            executable_path_with(OsStr::new("systemctl"), Some(OsStr::new("/nix/bin"))),
+            PathBuf::from("systemctl")
+        );
+
+        let directory =
+            std::env::temp_dir().join(format!("droidloom-bin-path-test-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let replacement = directory.join("droidloomctl");
+        std::fs::write(&replacement, b"").unwrap();
+        assert_eq!(
+            executable_path_with(original.as_os_str(), Some(directory.as_os_str())),
+            replacement
+        );
+        std::fs::remove_file(replacement).unwrap();
+        std::fs::remove_dir(directory).unwrap();
+    }
+
     #[test]
     fn validates_topology_and_platform_partitions() {
         for invalid in ["", "-1", "1-0", "1-2-3", "1,", "1024"] {
@@ -286,10 +314,41 @@ mod tests {
 /// Construct a child command that restores the original application CPU domain.
 /// The post-fork hook performs one syscall: no allocation, locks or discovery.
 pub fn command(program: impl AsRef<std::ffi::OsStr>) -> std::process::Command {
+    let program = executable_path(program);
     match GROUPS.get() {
         Some(Some(groups)) => command_in_domain(program, &groups.normal),
         _ => std::process::Command::new(program),
     }
+}
+
+/// Resolve an upstream `/usr/bin` executable through the optional host bin path.
+/// With no override, return the original path unchanged.
+pub fn executable_path(program: impl AsRef<std::ffi::OsStr>) -> PathBuf {
+    executable_path_with(
+        program.as_ref(),
+        env::var_os("DROIDLOOM_BIN_PATH").as_deref(),
+    )
+}
+
+fn executable_path_with(
+    program: &std::ffi::OsStr,
+    search_path: Option<&std::ffi::OsStr>,
+) -> PathBuf {
+    let program = Path::new(program);
+    let Some(name) = program
+        .strip_prefix("/usr/bin")
+        .ok()
+        .and_then(Path::file_name)
+    else {
+        return program.to_path_buf();
+    };
+    let Some(search_path) = search_path else {
+        return program.to_path_buf();
+    };
+    env::split_paths(search_path)
+        .map(|directory| directory.join(name))
+        .find(|candidate| candidate.is_file())
+        .unwrap_or_else(|| program.to_path_buf())
 }
 
 fn command_in_domain(program: impl AsRef<std::ffi::OsStr>, cpus: &CpuSet) -> std::process::Command {

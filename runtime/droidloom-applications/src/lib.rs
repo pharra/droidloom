@@ -633,9 +633,12 @@ fn with_launch_resolution(desktop: String, resolution: &str) -> String {
 
 fn desktop_entry(application: &AndroidApplication, user: u32, icon: Option<&str>) -> String {
     let icon = icon.unwrap_or("application-x-executable");
+    let control = std::env::var("DROIDLOOM_CTL").unwrap_or_else(|_| "/usr/bin/droidloomctl".into());
     format!(
-        "[Desktop Entry]\nType=Application\nVersion=1.0\nName={}\nComment=Android application via Droidloom\nTryExec=/usr/bin/droidloomctl\nExec=/usr/bin/droidloomctl launch {} --component {} --user {}\nIcon={}\nTerminal=false\nStartupNotify=true\nStartupWMClass={}\nX-Droidloom-Managed=true\nX-Droidloom-Package={}\nX-Droidloom-Component={}\nX-Droidloom-User={}\n",
+        "[Desktop Entry]\nType=Application\nVersion=1.0\nName={}\nComment=Android application via Droidloom\nTryExec={}\nExec={} launch {} --component {} --user {}\nIcon={}\nTerminal=false\nStartupNotify=true\nStartupWMClass={}\nX-Droidloom-Managed=true\nX-Droidloom-Package={}\nX-Droidloom-Component={}\nX-Droidloom-User={}\n",
         escape_desktop_value(&application.name),
+        control,
+        control,
         application.package,
         application.component,
         user,

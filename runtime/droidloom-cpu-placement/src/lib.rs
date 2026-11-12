@@ -5,7 +5,7 @@ use std::{io, thread};
 #[cfg(not(target_os = "android"))]
 mod linux;
 #[cfg(not(target_os = "android"))]
-pub use linux::{CpuSet, Groups, command, initialize};
+pub use linux::{CpuSet, Groups, command, executable_path, initialize};
 
 /// Placement relative to the CPU domain inherited at process startup.
 #[derive(Clone, Copy, Debug)]
