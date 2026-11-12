@@ -237,7 +237,21 @@ mod tests {
             executable_path_with(original.as_os_str(), Some(directory.as_os_str())),
             replacement
         );
+
+        // A bare tool name resolves to the same search path.
+        std::fs::write(directory.join("systemctl"), b"").unwrap();
+        assert_eq!(
+            executable_path_with(OsStr::new("systemctl"), Some(directory.as_os_str())),
+            directory.join("systemctl")
+        );
+        // Unknown bare names keep their PATH lookup.
+        assert_eq!(
+            executable_path_with(OsStr::new("unlisted-tool"), Some(directory.as_os_str())),
+            PathBuf::from("unlisted-tool")
+        );
+
         std::fs::remove_file(replacement).unwrap();
+        std::fs::remove_file(directory.join("systemctl")).unwrap();
         std::fs::remove_dir(directory).unwrap();
     }
 
@@ -321,8 +335,8 @@ pub fn command(program: impl AsRef<std::ffi::OsStr>) -> std::process::Command {
     }
 }
 
-/// Resolve an upstream `/usr/bin` executable through the optional host bin path.
-/// With no override, return the original path unchanged.
+/// Resolve an upstream `/usr/bin` executable or a bare tool name through the
+/// optional host bin path. With no override, return the original unchanged.
 pub fn executable_path(program: impl AsRef<std::ffi::OsStr>) -> PathBuf {
     executable_path_with(
         program.as_ref(),
@@ -335,15 +349,20 @@ fn executable_path_with(
     search_path: Option<&std::ffi::OsStr>,
 ) -> PathBuf {
     let program = Path::new(program);
-    let Some(name) = program
-        .strip_prefix("/usr/bin")
-        .ok()
-        .and_then(Path::file_name)
-    else {
-        return program.to_path_buf();
-    };
     let Some(search_path) = search_path else {
         return program.to_path_buf();
+    };
+    // Upstream absolute paths move to the host bin path; bare names fall back
+    // to PATH when nothing matches. Unknown absolute paths stay untouched.
+    let name = match program.strip_prefix("/usr/bin") {
+        Ok(relative) => match relative.file_name() {
+            Some(name) => name,
+            None => return program.to_path_buf(),
+        },
+        Err(_) if !program.is_absolute() && program.components().count() == 1 => {
+            program.as_os_str()
+        }
+        Err(_) => return program.to_path_buf(),
     };
     env::split_paths(search_path)
         .map(|directory| directory.join(name))

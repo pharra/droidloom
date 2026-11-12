@@ -201,7 +201,7 @@ in
       after = [ "network.target" ];
       path = with pkgs; [
         host coreutils util-linux iproute2 nftables iptables android-tools
-        e2fsprogs systemd procps findutils gnugrep gnused
+        e2fsprogs gnutar zstd rsync systemd procps findutils gnugrep gnused
       ];
       preStart = ''
         # Only create missing directories. Never reset ownership/mode of data

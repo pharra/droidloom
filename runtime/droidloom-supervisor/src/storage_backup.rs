@@ -208,6 +208,11 @@ fn walk(root: &Path) -> Result<Vec<Entry>> {
 }
 
 fn release() -> Option<String> {
+    if let Some(name) = std::env::var_os("DROIDLOOM_RELEASE")
+        && !name.is_empty()
+    {
+        return name.into_string().ok();
+    }
     fs::read_link(ACTIVE_RELEASE)
         .ok()
         .and_then(|target| target.file_name()?.to_str().map(str::to_owned))

@@ -68,6 +68,12 @@ pub const DEFAULT_SPEC_DIRECTORY: &str = "/etc/droidloom";
 /// Default small namespace-entry executable.
 pub const DEFAULT_SUPERVISOR: &str = "/usr/bin/droidloom-supervisor";
 
+/// The default supervisor resolved through the optional host bin path.
+#[must_use]
+pub fn default_supervisor() -> PathBuf {
+    droidloom_cpu_placement::executable_path(DEFAULT_SUPERVISOR)
+}
+
 const MAX_MESSAGE_BYTES: u64 = 64 * 1024;
 const MAX_RESPONSE_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_SPEC_BYTES: u64 = 1024 * 1024;

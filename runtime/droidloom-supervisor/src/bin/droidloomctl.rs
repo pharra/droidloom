@@ -265,6 +265,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 if package_version_path().is_file() {
                     return Err("Droidloom is managed by pacman. Install the new package pair with sudo pacman -U, or build it with cargo run --locked -j 1 -p droidloom-package -- build. Sudo is needed only to replace package-owned system files and update pacman's database.".into());
                 }
+                if !droidloom_cpu_placement::executable_path("/usr/bin/droidloom-update").is_file()
+                {
+                    return Err("droidloom-update is not installed; update Droidloom through its package manager instead".into());
+                }
                 let mut command = droidloom_cpu_placement::command("/usr/bin/droidloom-update");
                 if clean {
                     command.arg("--clean");

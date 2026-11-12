@@ -166,7 +166,7 @@ The root flake exposes an x86_64 NixOS module and a host package. It builds the
 Linux host programs from this checkout and fetches the matching release 33
 Android image and runtime metadata; the Android image itself is not patched.
 Host paths retain their existing `/usr/...` defaults in source builds; the
-NixOS package wrappers provide `DROIDLOOM_BIN_PATH` and
+NixOS package wrappers provide `DROIDLOOM_BIN_PATH`, `DROIDLOOM_RELEASE` and
 `DROIDLOOM_PACKAGE_VERSION` overrides at runtime, and the module supplies the
 Nix-store path for generated application launchers. No build-time source
 rewriting is used. This integration is experimental and needs validation on

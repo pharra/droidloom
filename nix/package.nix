@@ -1,7 +1,8 @@
 { lib, rustPlatform, fetchurl, runCommand, zstd, gnutar,
   python3, pkg-config, clang, llvmPackages, libdrm, libgbm, mesa, wayland,
   libxkbcommon, pipewire, systemd, glibc, util-linux, coreutils,
-  android-tools, polkit, iproute2, libGL, libffi, zlib, vulkan-loader,
+  android-tools, polkit, iproute2, nftables, iptables, e2fsprogs, rsync,
+  libGL, libffi, zlib, vulkan-loader,
   glslang, makeWrapper, erofs-utils, droidloomSrc }:
 let
   upstreamVersion = "0.1.0-33";
@@ -40,6 +41,13 @@ let
 
   androidArtifacts = unpackPackage "android" imageArchive;
   runtimeMetadata = unpackPackage "runtime" runtimeArchive;
+
+  # NixOS has no /usr/bin: host programs resolve their upstream absolute paths
+  # through this search path at runtime, and fall back to it for bare tool names.
+  hostBinPath = lib.makeBinPath [
+    coreutils util-linux systemd glibc.bin android-tools iproute2
+    nftables iptables e2fsprogs gnutar zstd rsync polkit
+  ];
 
   # The release 33 framework crashes when these featureFlag attributes refer
   # to an unavailable Aconfig package; extract its config and remove them.
@@ -97,12 +105,16 @@ PY
       for name in droidloomd droidloomctl droidloom-supervisor droidloom-wayland droidloom-applications droidloom-audio droidloom-devices droidloom-doctor droidloom-gpu-server; do
         if [ "$name" = droidloom-gpu-server ]; then
           wrapProgram "$out/bin/$name" \
-            --set DROIDLOOM_BIN_PATH /run/current-system/sw/bin \
+            --set DROIDLOOM_BIN_PATH "${hostBinPath}" \
+            --suffix DROIDLOOM_BIN_PATH : "$out/bin" \
+            --set DROIDLOOM_RELEASE "${upstreamVersion}" \
             --set DROIDLOOM_PACKAGE_VERSION /var/empty/droidloom-nixos-not-pacman \
             --prefix LD_LIBRARY_PATH : "${vulkan-loader}/lib"
         else
           wrapProgram "$out/bin/$name" \
-            --set DROIDLOOM_BIN_PATH /run/current-system/sw/bin \
+            --set DROIDLOOM_BIN_PATH "${hostBinPath}" \
+            --suffix DROIDLOOM_BIN_PATH : "$out/bin" \
+            --set DROIDLOOM_RELEASE "${upstreamVersion}" \
             --set DROIDLOOM_PACKAGE_VERSION /var/empty/droidloom-nixos-not-pacman
         fi
       done

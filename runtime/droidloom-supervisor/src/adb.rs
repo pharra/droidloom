@@ -149,7 +149,10 @@ impl AdbClient {
         // owner. Use the normal user's default local server and key location.
         command
             .env_clear()
-            .env("PATH", "/usr/bin:/bin")
+            .env(
+                "PATH",
+                std::env::var("DROIDLOOM_BIN_PATH").unwrap_or_else(|_| "/usr/bin:/bin".into()),
+            )
             .env("HOME", &self.home)
             .env("USER", &self.name)
             .env("LOGNAME", &self.name)

@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicI32, Ordering};
 
 use clap::Parser;
 use droidloom_supervisor::control::{
-    DEFAULT_CONTROL_SOCKET, DEFAULT_SPEC_DIRECTORY, DEFAULT_SUPERVISOR, DaemonConfig, Shutdown,
+    DEFAULT_CONTROL_SOCKET, DEFAULT_SPEC_DIRECTORY, DaemonConfig, Shutdown, default_supervisor,
     serve,
 };
 
@@ -21,7 +21,7 @@ struct Cli {
     #[arg(long, default_value = DEFAULT_CONTROL_SOCKET)]
     socket: PathBuf,
     /// Small supervisor executable providing the private namespace entry.
-    #[arg(long, default_value = DEFAULT_SUPERVISOR)]
+    #[arg(long, default_value_os_t = default_supervisor())]
     supervisor: PathBuf,
     /// Root-owned cell-specification directory trusted for user requests.
     #[arg(long, default_value = DEFAULT_SPEC_DIRECTORY)]
