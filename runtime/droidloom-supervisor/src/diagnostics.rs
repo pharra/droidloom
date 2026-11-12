@@ -19,7 +19,9 @@ pub(super) fn collect(
     collect_with(package, user, lines, crashes, |args| {
         let mut command = droidloom_cpu_placement::command("/usr/bin/timeout");
         command
-            .args(["--kill-after=1s", "10s", "/usr/bin/nsenter", "--target"])
+            .args(["--kill-after=1s", "10s"])
+            .arg(droidloom_cpu_placement::executable_path("/usr/bin/nsenter"))
+            .arg("--target")
             .arg(pid.to_string())
             .args([
                 "--mount", "--uts", "--ipc", "--net", "--pid", "--cgroup", "--root", "--wd",
@@ -254,7 +256,10 @@ mod tests {
     #[test]
     fn timed_out_commands_report_failure() {
         let mut command = droidloom_cpu_placement::command("/usr/bin/timeout");
-        command.args(["--kill-after=0.1s", "0.1s", "/usr/bin/sleep", "5"]);
+        command
+            .args(["--kill-after=0.1s", "0.1s"])
+            .arg(droidloom_cpu_placement::executable_path("/usr/bin/sleep"))
+            .arg("5");
         let started = std::time::Instant::now();
         let error = capture(&mut command).unwrap_err().to_string();
         assert!(error.contains("Android looks stuck"));

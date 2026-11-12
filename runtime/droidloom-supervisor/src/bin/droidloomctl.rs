@@ -262,7 +262,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
             Command::Gpu { .. } => unreachable!("handled by package setup"),
             Command::Update { clean, build_only } => {
-                if PathBuf::from("/usr/share/droidloom/package.json").is_file() {
+                if package_version_path().is_file() {
                     return Err("Droidloom is managed by pacman. Install the new package pair with sudo pacman -U, or build it with cargo run --locked -j 1 -p droidloom-package -- build. Sudo is needed only to replace package-owned system files and update pacman's database.".into());
                 }
                 let mut command = droidloom_cpu_placement::command("/usr/bin/droidloom-update");
@@ -370,8 +370,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         };
         if cli.cell {
             // The session's start shows the boot notice; recovery closes it.
-            let notice = matches!(control_request, ControlRequest::Start { .. })
-                .then(BootNotice::starting);
+            let notice =
+                matches!(control_request, ControlRequest::Start { .. }).then(BootNotice::starting);
             let response = request(&cli.socket, &control_request);
             if let Some(notice) = notice {
                 match &response {
@@ -467,12 +467,21 @@ fn storage(
     }
 }
 
+fn package_version_path() -> PathBuf {
+    env::var_os("DROIDLOOM_PACKAGE_VERSION")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/usr/share/droidloom/package.json"))
+}
+
 /// GPU choice is package setup's: it rewrites the root-owned configuration.
-fn gpu(choice: Option<&droidloom_supervisor::host_gpu::GpuChoice>) -> Result<(), Box<dyn std::error::Error>> {
-    if !PathBuf::from("/usr/share/droidloom/package.json").is_file() {
+fn gpu(
+    choice: Option<&droidloom_supervisor::host_gpu::GpuChoice>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !package_version_path().is_file() {
         return Err("choosing the GPU needs the pacman package; a source installation reads \"gpu\" from /etc/droidloom/cell.json at droidloomctl update".into());
     }
-    let mut command = droidloom_cpu_placement::command("/usr/lib/droidloom/droidloom-package-helper");
+    let mut command =
+        droidloom_cpu_placement::command("/usr/lib/droidloom/droidloom-package-helper");
     command.arg("gpu");
     if let Some(choice) = choice {
         command.arg(choice.to_string());
@@ -489,7 +498,7 @@ fn session_lifecycle(
     requested_mode: Option<SessionMode>,
     no_wait: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if operation != "stop" && PathBuf::from("/usr/share/droidloom/package.json").is_file() {
+    if operation != "stop" && package_version_path().is_file() {
         let status =
             droidloom_cpu_placement::command("/usr/lib/droidloom/droidloom-package-helper")
                 .arg("prepare")
